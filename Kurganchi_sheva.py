@@ -1,95 +1,201 @@
-"""Toshkent viloyati tumanlarida va asosan
-Quyichirchiq tumani Qo‘rg‘oncha shaharchasida
-og‘zaki nutqda ishlatiladi."""
+"""
+Toshkent viloyati tumanlarida va asosan
+Quyichirchiq tumani Qo'rg'oncha shaharchasida
+og'zaki nutqda ishlatiladi.
+
+Dastur fe'llarni rasmiy va sheva shakllarida
+avtomatik ravishda tuslantirib beradi.
+Tovush uyg'unligi qoidasi qo'shilgan.
+"""
 
 import pandas as pd
 import os
-print(os.getcwd())
+from pathlib import Path
+
+print(f"Joriy katalog: {os.getcwd()}")
 
 def asosiy_formalar(ozak):
-    """Fe'l uchun 2xil asos:     - oddiy asos (bil, kel, bor),     - a-li asos (bila, kela, bora)"""
-    # maxsus fe'l: ye → yey
+    """
+    Fe'l uchun 2 xil asos hosil qiladi:
+    - oddiy asos (bil, kel, bor)
+    - a-li asos (bila, kela, bora)
+
+    Args:
+        ozak (str): Fe'l o'zagi
+
+    Returns:
+        dict: oddiy va a-li asoslar
+    """
+    # Maxsus fe'l: ye → yey
     if ozak == "ye":
         return {
             "oddiy": "yey",
             "ali": "yey"
         }
 
+    # r, l bilan tugagan fe'llar: bor → bora, kel → kela
     if ozak.endswith(("r", "l")):
-        return{
+        return {
             "oddiy": ozak,
             "ali": ozak + "a"
         }
 
+    # Qolgan barcha fe'llar
     return {
         "oddiy": ozak,
         "ali": ozak
     }
 
-QOIDALAR = {
-    "rasmiy": [
-        ("ali", "man"),
-        ("ali", "san"),
-        ("ali", "di"),
-        ("ali", "miz"),
-        ("ali", "sizlar"),
-        ("oddiy", "ishadi"), # muhim joy ekan
-        ],
-    "sheva": [
-        ("oddiy", "em"),
-        ("oddiy", "esn"),
-        ("oddiy", "edi"),
-        ("oddiy", "emz"),
-        ("oddiy", "esler"),
-        ("oddiy", "ishedi")
+def tovush_uygunligini_aniqlash(ozak):
+    """
+    Sheva uchun tovush uyg'unligini aniqlaydi.
+    -il, -er, -el, -ör bilan tugasa → 'e'
+    Boshqalari → 'a'
+
+    Args:
+        ozak (str): Fe'l o'zagi (sheva varianti)
+
+    Returns:
+        str: 'e' yoki 'a'
+    """
+    # -il, -er, -el, -ör bilan tugovchi fe'llar
+    if ozak.endswith(("il", "er", "el", "ör")):
+        return "e"
+    return "a"
+
+# Rasmiy shakllari uchun qoidalar (o'zgarishsiz)
+RASMIY_QOIDALAR = [
+    ("ali", "man"),      # men bilaman
+    ("ali", "san"),      # sen bilasan
+    ("ali", "di"),       # u biladi
+    ("ali", "miz"),      # biz bilamiz
+    ("ali", "sizlar"),   # sizlar bilasizlar
+    ("oddiy", "ishadi"), # ular bilishadi
+]
+
+def sheva_qoidalarini_hosil_qilish(unli):
+    """
+    Tovush uyg'unligiga qarab sheva qoidalarini hosil qiladi.
+
+    Args:
+        unli (str): 'e' yoki 'a'
+
+    Returns:
+        list: Sheva uchun qoidalar ro'yxati
+    """
+    return [
+        ("oddiy", f"{unli}m"),        # men bilem / boram
+        ("oddiy", f"{unli}sn"),       # sen bilesn / borasn
+        ("oddiy", f"{unli}di"),       # u biledi / boradi
+        ("oddiy", f"{unli}mz"),       # biz bilemz / boramz
+        ("oddiy", f"{unli}sl{unli}r"),     # sizlar bilesler / boraslar
+        ("oddiy", f"ish{unli}di")     # ular bilishedi / borishadi
     ]
-}
-def felni_toldir(ozak, tur="rasmiy"):
+
+def felni_toldir_rasmiy(ozak):
+    """
+    Fe'l o'zagidan rasmiy shakllarni hosil qiladi.
+
+    Args:
+        ozak (str): Fe'l o'zagi
+
+    Returns:
+        list: 6 ta shaxs-son shakli
+    """
     asoslar = asosiy_formalar(ozak)
-    qoidalar = QOIDALAR[tur]
 
     return [
-        asoslar[asos_turi]+suffix
-        for asos_turi, suffix in qoidalar
+        asoslar[asos_turi] + suffix
+        for asos_turi, suffix in RASMIY_QOIDALAR
     ]
 
-# Excelni o'qish
-df = pd.read_excel("fellar.xlsx")
+def felni_toldir_sheva(ozak):
+    """
+    Fe'l o'zagidan sheva shakllarni hosil qiladi.
+    Tovush uyg'unligini hisobga oladi.
 
-natija_qatorlar = []
+    Args:
+        ozak (str): Fe'l o'zagi (sheva varianti)
 
-for _, row in df.iterrows():
-    rasmiy = row["rasmiy"]
-    sheva = row["sheva"]
+    Returns:
+        list: 6 ta shaxs-son shakli
+    """
+    # Tovush uyg'unligini aniqlash
+    unli = tovush_uygunligini_aniqlash(ozak)
 
-    rasmiy_shakllar = felni_toldir(rasmiy, 'rasmiy')
-    sheva_shakllar = felni_toldir(sheva, "sheva")
+    # Sheva qoidalarini hosil qilish
+    sheva_qoidalar = sheva_qoidalarini_hosil_qilish(unli)
 
-    natija_qatorlar.append(
-        [rasmiy, sheva] + rasmiy_shakllar + sheva_shakllar
+    # Faqat oddiy asosdan foydalanish
+    return [
+        ozak + suffix
+        for asos_turi, suffix in sheva_qoidalar
+    ]
+
+def main():
+    """Asosiy dastur"""
+
+    # Fayl mavjudligini tekshirish
+    kirish_fayl = "fellar.xlsx"
+    if not Path(kirish_fayl).exists():
+        print(f"❌ Xato: '{kirish_fayl}' fayli topilmadi!")
+        print(f"   Iltimos, joriy katalogda '{kirish_fayl}' faylini yarating.")
+        return
+
+    try:
+        # Excel faylni o'qish
+        df = pd.read_excel(kirish_fayl)
+
+        # Kerakli ustunlar borligini tekshirish
+        if "rasmiy" not in df.columns or "sheva" not in df.columns:
+            print("❌ Xato: Excel faylda 'rasmiy' va 'sheva' ustunlari bo'lishi kerak!")
+            return
+
+        print(f"📖 '{kirish_fayl}' faylidan {len(df)} ta fe'l o'qildi.")
+
+    except Exception as e:
+        print(f"❌ Xato: Faylni o'qishda muammo: {e}")
+        return
+
+    # Natija qatorlarini tayyorlash
+    natija_qatorlar = []
+
+    for idx, row in df.iterrows():
+        rasmiy = row["rasmiy"]
+        sheva = row["sheva"]
+
+        # Bo'sh qatorlarni o'tkazib yuborish
+        if pd.isna(rasmiy) or pd.isna(sheva):
+            continue
+
+        rasmiy_shakllar = felni_toldir_rasmiy(rasmiy)
+        sheva_shakllar = felni_toldir_sheva(sheva)
+
+        natija_qatorlar.append(
+            [rasmiy, sheva] + rasmiy_shakllar + sheva_shakllar
+        )
+
+    # Ustun nomlari
+    ustunlar = (
+        ["Rasmiy o'zak", "Sheva o'zak"] +
+        ["1-sh birlik", "2-sh birlik", "3-sh birlik",
+         "1-sh ko'plik", "2-sh ko'plik", "3-sh ko'plik"] +
+        ["Sheva 1-sh birlik", "Sheva 2-sh birlik", "Sheva 3-sh birlik",
+         "Sheva 1-sh ko'plik", "Sheva 2-sh ko'plik", "Sheva 3-sh ko'plik"]
     )
 
-# ustun nomlari
-ustunlar = (
-    ["rasmiy", "sheva"] +
-    ["1-shaxs birlik", "2-shaxs birlik", "3-shaxs birlik", "1-shaxs ko'plik", "2-shaxs ko'plik", "3-shaxs ko'plik"] +
-    ["sheva 1-shaxs birlik", "sheva 2-shaxs birlik", "sheva 3-shaxs birlik", "sheva 1-shaxs ko'plik", "sheva 2-shaxs ko'plik", "sheva 3-shaxs ko'plik"]
-)
-# yangi dataframe
-out_df = pd.DataFrame(natija_qatorlar, columns=ustunlar)
+    # Yangi DataFrame yaratish
+    out_df = pd.DataFrame(natija_qatorlar, columns=ustunlar)
 
-#  Excelga yozish
-out_df.to_excel("natija.xlsx", index=False)
+    # Excel faylga yozish
+    chiqish_fayl = "natija.xlsx"
+    out_df.to_excel(chiqish_fayl, index=False)
 
-print("✅ Excel tayyor: natija.xlsx")
+    print(f"✅ Tayyor! {len(natija_qatorlar)} ta fe'l qayta ishlandi.")
+    print(f"📄 Natija '{chiqish_fayl}' faylida saqlandi.")
+    print(f"\n📊 Tovush uyg'unligi qoidasi:")
+    print(f"   • -il, -er, -el, -ör bilan tugasa → 'e' (bilem, berem, körem, kelem)")
+    print(f"   • Boshqalari → 'a' (boram, yeyam, olam)")
 
-
-
-
-# # # fellar = ["bil", "kel", "bor", "ye"]
-# # #
-# # # for f in fellar:
-# # #     print("RASMIY:", f," → ", felni_toldir(f, "rasmiy"))
-# # #     print("SHEVA:", f," → ", felni_toldir(f, "sheva"))
-
-
+if __name__ == "__main__":
+    main()
