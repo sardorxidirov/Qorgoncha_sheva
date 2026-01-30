@@ -50,7 +50,7 @@ def asosiy_formalar(ozak):
 def tovush_uygunligini_aniqlash(ozak):
     """
     Sheva uchun tovush uyg'unligini aniqlaydi.
-    -il, -er, -el, -o'r bilan tugasa → 'e'
+    -il, -er, -el, -ör, -et, -ir bilan tugasa → 'e'
     Boshqalari → 'a'
 
     Args:
@@ -59,8 +59,8 @@ def tovush_uygunligini_aniqlash(ozak):
     Returns:
         str: 'e' yoki 'a'
     """
-    # -il, -er, -el, -ör bilan tugovchi fe'llar
-    if ozak.endswith(("il", "er", "el", "o'r")):
+    # -il, -er, -el, -ör, -et, -ir bilan tugovchi fe'llar
+    if ozak.endswith(("il", "er", "el", "ör", "et", "ir")):
         return "e"
     return "a"
 
@@ -88,7 +88,7 @@ def sheva_qoidalarini_hosil_qilish(unli):
         ("oddiy", f"{unli}sn"),        # sen bilesn / borasn
         ("oddiy", f"{unli}di"),        # u biledi / boradi
         ("oddiy", f"{unli}mz"),        # biz bilemz / boramz
-        ("oddiy", f"{unli}sler"),      # sizlar bilesler / boraslar
+        ("oddiy", f"{unli}sl{unli}r"), # sizlar esler / aslar (TO'G'RILANDI!)
         ("oddiy", f"ish{unli}di")      # ular bilishedi / borishadi
     ]
 
@@ -128,7 +128,19 @@ def felni_toldir_rasmiy(ozak):
 def felni_toldir_sheva(ozak):
     """
     Fe'l o'zagidan sheva shakllarni hosil qiladi.
-    Tovush uyg'unligini hisobga oladi.
+
+    QOIDA 1: Agar o'zak UNLI bilan tugasa (-a, -e, -i):
+      - 1-5 shaxs: o'zak + y + m/sn/di/mz/sler
+      - 3-shaxs ko'plik:
+        * -a bilan tugasa: o'zak + shadi
+        * -e bilan tugasa: o'zak + shedi
+        * -i bilan tugasa: o'zak + shadi
+        * MAXSUS di, ji: diyishedi, jiyishedi
+
+    QOIDA 2: Agar o'zak UNDOSH bilan tugasa:
+      - Tovush uyg'unligi: -il/-er/-el/-ör/-et/-ir → 'e', qolganlari → 'a'
+      - 1-5 shaxs: o'zak + em/esn/edi/emz/esler yoki am/asn/adi/amz/aslar
+      - 3-shaxs ko'plik: o'zak + ishedi yoki ishadi
 
     Args:
         ozak (str): Fe'l o'zagi (sheva varianti)
@@ -136,17 +148,47 @@ def felni_toldir_sheva(ozak):
     Returns:
         list: 6 ta shaxs-son shakli
     """
-    # Tovush uyg'unligini aniqlash
-    unli = tovush_uygunligini_aniqlash(ozak)
 
-    # Sheva qoidalarini hosil qilish
-    sheva_qoidalar = sheva_qoidalarini_hosil_qilish(unli)
+    # QOIDA 1: Unli bilan tugagan fe'llar
+    if ozak.endswith(("a", "e", "i")):
+        # 1-5 shaxslar: o'zak + y + m/sn/di/mz/sler
+        natija = [
+            ozak + "ym",      # 1-sh birlik
+            ozak + "ysn",     # 2-sh birlik
+            ozak + "ydi",     # 3-sh birlik
+            ozak + "ymz",     # 1-sh ko'plik
+            ozak + "ysler",   # 2-sh ko'plik
+        ]
 
-    # Faqat oddiy asosdan foydalanish
-    return [
-        ozak + suffix
-        for asos_turi, suffix in sheva_qoidalar
-    ]
+        # 3-shaxs ko'plik (maxsus qoidalar)
+        if ozak in ["di", "ji"]:
+            # MAXSUS: di → diyishedi, ji → jiyishedi
+            natija.append(ozak + "yishedi")
+        elif ozak.endswith("a"):
+            # -a bilan tugasa: shadi
+            natija.append(ozak + "shadi")
+        elif ozak.endswith("e"):
+            # -e bilan tugasa: shedi
+            natija.append(ozak + "shedi")
+        elif ozak.endswith("i"):
+            # -i bilan tugasa: shadi
+            natija.append(ozak + "shadi")
+
+        return natija
+
+    # QOIDA 2: Undosh bilan tugagan fe'llar
+    else:
+        # Tovush uyg'unligini aniqlash
+        unli = tovush_uygunligini_aniqlash(ozak)
+
+        # Sheva qoidalarini hosil qilish
+        sheva_qoidalar = sheva_qoidalarini_hosil_qilish(unli)
+
+        # Shakllarni hosil qilish
+        return [
+            ozak + suffix
+            for asos_turi, suffix in sheva_qoidalar
+        ]
 
 def main():
     """Asosiy dastur"""
@@ -211,7 +253,9 @@ def main():
     print(f"📄 Natija '{chiqish_fayl}' faylida saqlandi.")
     print(f"\n📊 Qoidalar:")
     print(f"   • Rasmiy 3-sh ko'plik: undosh+ishadi, unli+shadi (de, ye dan tashqari)")
-    print(f"   • Sheva tovush uyg'unligi: -il/-er/-el/-o'r → 'e', qolganlari → 'a'")
+    print(f"   • Sheva unli bilan tugasa: o'zak+ym/ysn/ydi/ymz/ysler, 3-sh: -a→shadi, -e→shedi, -i→shadi")
+    print(f"   • Sheva undosh bilan tugasa: tovush uyg'unligi (-il/-er/-el/-ör/-et/-ir → 'e', qolganlari → 'a')")
+    print(f"   • Sheva 2-sh ko'plik: esler/aslar (bir xil unli)")
 
 if __name__ == "__main__":
     main()
